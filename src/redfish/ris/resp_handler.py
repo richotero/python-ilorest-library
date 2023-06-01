@@ -76,6 +76,9 @@ class ResponseHandler(object):
         if response.status < 300 and (
             response._rest_request.method == "GET" or not response.read
         ):
+            # for rawget
+            if verbosity == 0:
+                verbosity = 1
             print_handler(
                 self.verbosity_levels(
                     message=message_text,

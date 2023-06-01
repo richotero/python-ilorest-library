@@ -478,10 +478,12 @@ class RestClient(RestClientBase):
             headers = dict()
             resp = self.post(self.login_url, body=data, headers=headers)
             try:
-                LOGGER.info(json.loads("%s" % resp.read))
+                respread = resp.read
+                respread = respread.replace("\\\\", "\\")
+                #LOGGER.info("%s" % respread)
             except ValueError:
                 pass
-            LOGGER.info("Login returned code %s: %s", resp.status, resp.read)
+            LOGGER.debug("Login returned code %s: %s", resp.status, respread)
 
             self.session_key = resp.session_key
             self.session_location = resp.session_location

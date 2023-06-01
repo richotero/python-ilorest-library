@@ -268,6 +268,7 @@ class HttpConnection(object):
                     if "NewPassword" in debugjson.keys():
                         debugjson["NewPassword"] = "******"
                     logbody = json.dumps(debugjson)
+                    logbody = logbody.replace("\\\\", "\\")
                 LOGGER.debug(
                     "HTTP REQUEST: %s\n\tPATH: %s\n\t" "HEADERS: %s\n\tBODY: %s",
                     restreq.method,
@@ -312,6 +313,9 @@ class HttpConnection(object):
         )
 
         restresp = RestResponse(restreq, resp)
+#        if restresp.request.body:
+#            respbody = restresp.read
+#            respbody = respbody.replace("\\\\", "\\")
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             headerstr = ""

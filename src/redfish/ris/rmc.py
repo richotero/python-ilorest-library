@@ -41,6 +41,7 @@ from redfish.ris.ris import SessionExpired, RisMonolith, SchemaValidationError
 from redfish.ris.validation import ValidationManager, Typepathforval
 from redfish.ris.resp_handler import ResponseHandler
 from redfish.ris.utils import (
+    print_handler,
     merge_dict,
     getattributeregistry,
     diffdict,
@@ -891,7 +892,7 @@ class RmcApp(object):
         if results and hasattr(results, "status") and results.status == 412:
             self._updatemono(path=put_path, path_refresh=True)
 
-        if not silent:
+        if not silent and hasattr(self.typepath.defs, "messageregistrytype"):
             ResponseHandler(
                 self.validationmanager, self.typepath.defs.messageregistrytype
             ).output_resp(results, dl_reg=service, verbosity=self.verbose)
@@ -946,8 +947,13 @@ class RmcApp(object):
 
         if results and getattr(results, "status", None) and results.status == 404:
             return results
-        
+
         if results and results.status == 200 and sessionid:
+            if not silent:
+                if hasattr(self.typepath.defs, "messageregistrytype"):
+                    ResponseHandler(self.validationmanager, self.typepath.defs.messageregistrytype).output_resp(results, dl_reg=service, verbosity=self.verbose)
+                else:
+                    print_handler("[" + str(results.status) + "]" + " The operation completed successfully.\n")
             return results
 
         if not uncache and results.status == 200 and not sessionid:
@@ -958,9 +964,12 @@ class RmcApp(object):
             raise SessionExpired()
 
         if not silent:
-            ResponseHandler(
-                self.validationmanager, self.typepath.defs.messageregistrytype
-            ).output_resp(results, dl_reg=service, verbosity=self.verbose)
+            if hasattr(self.typepath.defs, "messageregistrytype"):
+                ResponseHandler(
+                    self.validationmanager, self.typepath.defs.messageregistrytype
+                ).output_resp(results, dl_reg=service, verbosity=self.verbose)
+            else:
+                print_handler("[" + str(results.status) + "]" + " The operation completed successfully.\n")
 
         return results
 
@@ -993,7 +1002,7 @@ class RmcApp(object):
 
         self._modifiedpath(results)
 
-        if not silent:
+        if not silent and hasattr(self.typepath.defs, "messageregistrytype"):
             ResponseHandler(
                 self.validationmanager, self.typepath.defs.messageregistrytype
             ).output_resp(results, dl_reg=service, verbosity=self.verbose)
@@ -1038,7 +1047,7 @@ class RmcApp(object):
 
         self._modifiedpath(results, replace=True)
 
-        if not silent:
+        if not silent and hasattr(self.typepath.defs, "messageregistrytype"):
             ResponseHandler(
                 self.validationmanager, self.typepath.defs.messageregistrytype
             ).output_resp(results, dl_reg=service, verbosity=self.verbose)
@@ -1069,7 +1078,7 @@ class RmcApp(object):
             raise SessionExpired()
         self._modifiedpath(results, delete=True)
 
-        if not silent:
+        if not silent and hasattr(self.typepath.defs, "messageregistrytype"):
             ResponseHandler(
                 self.validationmanager, self.typepath.defs.messageregistrytype
             ).output_resp(results, dl_reg=service, verbosity=self.verbose)
@@ -1097,7 +1106,7 @@ class RmcApp(object):
         if results and getattr(results, "status", None) and results.status == 401:
             raise SessionExpired()
 
-        if not silent:
+        if not silent and hasattr(self.typepath.defs, "messageregistrytype"):
             ResponseHandler(
                 self.validationmanager, self.typepath.defs.messageregistrytype
             ).output_resp(results, dl_reg=service, verbosity=self.verbose)
@@ -1188,6 +1197,7 @@ class RmcApp(object):
         """
         if (
             self.typepath.defs.isgen10
+            and hasattr(self.typepath, "gencompany")
             and self.typepath.gencompany
             and "?$expand=." not in path
         ):
@@ -1244,7 +1254,8 @@ class RmcApp(object):
             ) = self.typepath.iloversion = self.redfishinst.iloversion
 
         if (
-            self.typepath.gencompany
+            hasattr(self.typepath, "gencompany")
+            and self.typepath.gencompany
             and not self._iloversion
             and not self.typepath.noschemas
         ):
@@ -1270,6 +1281,7 @@ class RmcApp(object):
 
             self._iloversion = iloversion
         elif (
+            hasattr(self.typepath, "gencompany") and
             not self.typepath.gencompany
         ):  # Assume schemas are available somewhere in non-hpe redfish
             self._iloversion = iloversion = 4.210
@@ -1677,17 +1689,25 @@ class RmcApp(object):
         selector = None if selector == '"*"' else selector
         if self.monolith:
             if self.redfishinst.is_redfish:
-                instances = [
-                    inst
-                    for inst in self.monolith.iter(selector)
-                    if inst.maj_type not in ["object", "string"]
-                    and "redfish" in inst.path
-                ]
+                if selector in ["Bios.", "hpeserverbootsettings."]:
+                    instances = [
+                        inst
+                        for inst in self.monolith.iter(selector)
+                        if inst.maj_type not in ["object", "string"]
+                        and "redfish" in inst.path and "settings" in inst.path
+                        ]
+                else:
+                    instances = [
+                        inst
+                        for inst in self.monolith.iter(selector)
+                        if inst.maj_type not in ["object", "string"]
+                        and "redfish" in inst.path and "settings" not in inst.path
+                        ]
             else:
                 instances = [
                     inst
                     for inst in self.monolith.iter(selector)
-                    if inst.maj_type not in ["object", "string"] and "rest" in inst.path
+                    if inst.maj_type not in ["object", "string"] and "rest" in inst.path and "settings" not in inst.path
                 ]
 
         _ = [setattr(inst, "patches", []) for inst in instances if path_refresh]

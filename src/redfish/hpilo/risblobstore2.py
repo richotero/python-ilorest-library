@@ -919,22 +919,20 @@ class BlobStore2(object):
                 libhandle = cdll.LoadLibrary(libpath)
         if not libhandle:
             libnames = (
-                ["ilorest_chif.dll", "hprest_chif.dll"]
+                ["ilorest_chif.dll"]
                 if os.name == "nt"
                 else [
                     "ilorest_chif_dev.so",
-                    "hprest_chif_dev.so",
                     "ilorest_chif.so",
-                    "hprest_chif.so",
                 ]
             )
             for libname in libnames:
                 try:
                     libpath = BlobStore2.checkincurrdirectory(libname)
-                    LOGGER.info("Loading Library %s for libhpsrv", libpath)
+                    #LOGGER.debug("Loading Library %s for libhpsrv", libpath)
                     libhandle = cdll.LoadLibrary(libpath)
                     if libhandle:
-                        LOGGER.info("Got Libhandle %s for libhpsrv", libhandle)
+                        #LOGGER.debug("Got Libhandle %s for libhpsrv", libhandle)
                         break
                 except Exception as exp:
                     excp = exp
@@ -962,12 +960,11 @@ class BlobStore2(object):
         :param password: The password to login.
         :type password: str.
         """
-        LOGGER.info("Inside initializecreds")
+
         dll = BlobStore2.gethprestchifhandle()
         if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.info("Enabling DEBUG from libhpsrv")
             dll.enabledebugoutput()
-        LOGGER.info("Calling ChifInitialize from libhpsrv")
+        #LOGGER.debug("Calling ChifInitialize...")
         dll.ChifInitialize(None)
         if username:
             if not password:
@@ -979,9 +976,9 @@ class BlobStore2(object):
                 usernew = create_string_buffer(username.encode("utf-8"))
                 passnew = create_string_buffer(password.encode("utf-8"))
 
-                LOGGER.info("Calling initiate_credentials from libhpsrv")
+                #LOGGER.debug("Calling initiate_credentials...")
                 dll.initiate_credentials(usernew, passnew)
-                LOGGER.info("Calling ChifVerifyCredentials from libhpsrv")
+                #LOGGER.debug("Calling ChifVerifyCredentials...")
                 credreturn = dll.ChifVerifyCredentials()
                 if not credreturn == BlobReturnCodes.SUCCESS:
                     if credreturn == hpiloreturncodes.CHIFERR_AccessDenied:
@@ -995,11 +992,11 @@ class BlobStore2(object):
                 dll.ChifDisableSecurity()
         else:
             # if high security return False
-            LOGGER.info("Calling ChifIsSecurityRequired from libhpsrv")
+            #LOGGER.debug("Calling ChifIsSecurityRequired...")
             if dll.ChifIsSecurityRequired() > 0:
                 return False
             else:
-                LOGGER.info("Calling ChifDisableSecurity from libhpsrv")
+                #LOGGER.debug("Calling ChifDisableSecurity...")
                 dll.ChifDisableSecurity()
 
         BlobStore2.unloadchifhandle(dll)
