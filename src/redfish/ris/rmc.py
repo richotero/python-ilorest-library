@@ -1689,25 +1689,17 @@ class RmcApp(object):
         selector = None if selector == '"*"' else selector
         if self.monolith:
             if self.redfishinst.is_redfish:
-                if selector in ["Bios.", "hpeserverbootsettings."]:
-                    instances = [
-                        inst
-                        for inst in self.monolith.iter(selector)
-                        if inst.maj_type not in ["object", "string"]
-                        and "redfish" in inst.path and "settings" in inst.path
-                        ]
-                else:
-                    instances = [
-                        inst
-                        for inst in self.monolith.iter(selector)
-                        if inst.maj_type not in ["object", "string"]
-                        and "redfish" in inst.path and "settings" not in inst.path
-                        ]
+                instances = [
+                    inst
+                    for inst in self.monolith.iter(selector)
+                    if inst.maj_type not in ["object", "string"]
+                       and "redfish" in inst.path
+                ]
             else:
                 instances = [
                     inst
                     for inst in self.monolith.iter(selector)
-                    if inst.maj_type not in ["object", "string"] and "rest" in inst.path and "settings" not in inst.path
+                    if inst.maj_type not in ["object", "string"] and "rest" in inst.path
                 ]
 
         _ = [setattr(inst, "patches", []) for inst in instances if path_refresh]
