@@ -124,29 +124,37 @@ if __name__ == "__main__":
     #an account with specific privileges
     PRIVILEGE_DICT = {"iLOConfigPriv": True, "VirtualMediaPriv": True, "RemoteConsolePriv": True,\
                       "UserConfigPriv": True, "VirtualPowerAndResetPriv": True, \
-                      "SystemRecoveryConfigPriv": True, "LoginPriv": True, \
+                      "SystemRecoveryConfigPriv": False, "LoginPriv": True, \
                       "HostStorageConfigPriv": True, "HostNICConfigPriv": True, \
                       "HostBIOSConfigPriv": True}
     # flag to force disable resource directory. Resource directory and associated operations are
     # intended for HPE servers.
     DISABLE_RESOURCE_DIR = False
 
-    ca_cert_data = {}
-    ca_cert_data["cert_file"] = "c:\\test\\ppcacuser.crt"
-    ca_cert_data["key_file"] = "c:\\test\\ppcacuserpriv.key"
-    ca_cert_data["key_password"] = "password"
-    LOGIN_ACCOUNT = None
-    LOGIN_PASSWORD = None
+	#For certificate login
+    #ca_cert_data = {}
+    #ca_cert_data["cert_file"] = "c:\\test\\ppcacuser.crt"
+    #ca_cert_data["key_file"] = "c:\\test\\ppcacuserpriv.key"
+    #ca_cert_data["key_password"] = "password"
+    #LOGIN_ACCOUNT = None
+    #LOGIN_PASSWORD = None
 
     try:
         # Create a Redfish client object
-        REDFISHOBJ = RedfishClient(base_url=SYSTEM_URL, username=LOGIN_ACCOUNT, password=LOGIN_PASSWORD, ca_cert_data=ca_cert_data)
+		
+		REDFISHOBJ = RedfishClient(base_url=SYSTEM_URL, username=LOGIN_ACCOUNT, password=LOGIN_PASSWORD)
+		REDFISHOBJ.login()
+		
+		# For Certificate login
+        #REDFISHOBJ = RedfishClient(base_url=SYSTEM_URL, username=LOGIN_ACCOUNT, password=LOGIN_PASSWORD, ca_cert_data=ca_cert_data)
         #REDFISHOBJ = RedfishClient(base_url=SYSTEM_URL, ca_cert_data=ca_cert_data)
         # Login with the Redfish client
-        if ca_cert_data is None:
-            REDFISHOBJ.login()
-        else:
-            REDFISHOBJ.login(auth='certificate')
+		
+		
+        #if ca_cert_data is None:
+        #    REDFISHOBJ.login()
+        #else:
+        #    REDFISHOBJ.login(auth='certificate')
     except ServerDownOrUnreachableError as excp:
         sys.stderr.write("ERROR: server not reachable or does not support RedFish.\n")
         sys.exit()
@@ -160,7 +168,7 @@ if __name__ == "__main__":
     #add specified account
     (ilogen,_) = get_gen(REDFISHOBJ)
     print ("Generation is ", ilogen)
-    if int(ilogen) == 5:
+    if int(ilogen) >= 5:
         add_ilo_user_account(REDFISHOBJ,ACCOUNT_LOGIN_NAME,ACCOUNT_USER_NAME,ACCOUNT_PASSWORD,ROLE_ID,PRIVILEGE_DICT)
     else:
         add_ilo_user_account_gen9(REDFISHOBJ,ACCOUNT_LOGIN_NAME,ACCOUNT_USER_NAME,ACCOUNT_PASSWORD)
