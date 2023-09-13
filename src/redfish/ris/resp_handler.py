@@ -19,14 +19,20 @@
 with registries available on system, otherwise will return generic error responses."""
 import logging
 
-from redfish.ris.rmc_helper import IloLicenseError, ScepenabledError
 from redfish.ris.ris import SessionExpired
-from redfish.ris.utils import warning_handler, print_handler, get_errmsg_type, json_traversal
 from redfish.ris.rmc_helper import (
-    IloResponseError,
-    IdTokenError,
-    ValueChangedError,
     EmptyRaiseForEAFP,
+    IdTokenError,
+    IloLicenseError,
+    IloResponseError,
+    ScepenabledError,
+    ValueChangedError,
+)
+from redfish.ris.utils import (
+    get_errmsg_type,
+    json_traversal,
+    print_handler,
+    warning_handler,
 )
 
 # ---------Debug logger---------
@@ -73,27 +79,21 @@ class ResponseHandler(object):
         else:
             message_text = "The operation completed successfully."
 
-        if response.status < 300 and (
-            response._rest_request.method == "GET" or not response.read
-        ):
+        if response.status < 300 and (response._rest_request.method == "GET" or not response.read):
             # for rawget
             if verbosity == 0:
                 verbosity = 1
             print_handler(
                 self.verbosity_levels(
-                    message=message_text,
-                    response_status=response.status,
-                    verbosity=verbosity,
-                    dl_reg=dl_reg))
+                    message=message_text, response_status=response.status, verbosity=verbosity, dl_reg=dl_reg
+                )
+            )
         elif response.status == 401:
             raise SessionExpired()
         elif response.status == 403:
             results = response.dict["error"]["@Message.ExtendedInfo"]
             for result in results:
-                if (
-                    "License" in list(result.values())[0]
-                    or "license" in list(result.values())[0]
-                ):
+                if "License" in list(result.values())[0] or "license" in list(result.values())[0]:
                     raise IloLicenseError("")
             raise IdTokenError()
         elif response.status == 412:
@@ -113,10 +113,7 @@ class ResponseHandler(object):
         if response.status == 400:
             results = response.dict["error"]["@Message.ExtendedInfo"]
             for result in results:
-                if (
-                    "License" in list(result.values())[0]
-                    or "license" in list(result.values())[0]
-                ):
+                if "License" in list(result.values())[0] or "license" in list(result.values())[0]:
                     raise IloLicenseError("")
                 if "UnsupportedOperationACEEnabled" in list(result.values())[0]:
                     raise ScepenabledError("")
@@ -125,9 +122,7 @@ class ResponseHandler(object):
         else:
             return retdata
 
-    def message_handler(
-        self, response_data, verbosity=0, message_text="No Response", dl_reg=False
-    ):
+    def message_handler(self, response_data, verbosity=0, message_text="No Response", dl_reg=False):
         """Prints or logs parsed MessageId response based on verbosity level and returns the
         following message information in a list:
 
@@ -233,11 +228,9 @@ class ResponseHandler(object):
             try:
                 if not dl_reg:
                     for inst in data_extract:
-                        if [key.lower() for key in inst.keys()] not in [
-                            erk.lower() for erk in err_response_keys
-                        ]:
-                            if "messageid" in [str(_key.lower()) for _key in inst.keys()]:
-                                inst.update(self.get_error_messages(inst[_key]))
+                        if [key.lower() for key in inst.keys()] not in [erk.lower() for erk in err_response_keys]:
+                            if "messageid" in [str(key.lower()) for key in inst.keys()]:
+                                inst.update(self.get_error_messages(inst[key]))
                                 continue
             finally:
                 return data_extract
@@ -344,7 +337,7 @@ class ResponseHandler(object):
                 if not regval and reg:
                     reg = reg["@odata.id"].split("/")
                     reg = reg[len(reg) - 2]
-                    if not "biosattributeregistry" in reg.lower():
+                    if "biosattributeregistry" not in reg.lower():
                         reglist.append(reg)
                 elif regval:
                     reglist.append(regval)
@@ -355,15 +348,10 @@ class ResponseHandler(object):
                     getmsg=True, currtype=reg, searchtype=self.msg_reg_type
                 )
                 if messages:
-                    errmessages.update(
-                        messages.get(next(iter(messages)))[regtype.split(".")[-1]]
-                    )
+                    errmessages.update(messages.get(next(iter(messages)))[regtype.split(".")[-1]])
             if not reglist or not errmessages:
                 raise Exception
         except Exception:
-            raise EmptyRaiseForEAFP(
-                "Unable to find registry schema with provided registry "
-                "type: %s" % regtype
-            )
+            raise EmptyRaiseForEAFP("Unable to find registry schema with provided registry " "type: %s" % regtype)
         else:
             return errmessages

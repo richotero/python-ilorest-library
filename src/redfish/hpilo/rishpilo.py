@@ -19,12 +19,11 @@
 
 # ---------Imports---------
 
-import os
-import time
-import struct
 import logging
-
-from ctypes import c_void_p, c_uint32, byref, create_string_buffer
+import os
+import struct
+import time
+from ctypes import byref, c_uint32, c_void_p, create_string_buffer
 
 # ---------End of imports---------
 # ---------Debug logger---------
@@ -113,7 +112,7 @@ class HpIlo(object):
         self.dll = dll
         if LOGGER.isEnabledFor(logging.DEBUG):
             self.dll.enabledebugoutput()
-        #LOGGER.debug("Calling ChifInitialize...")
+        # LOGGER.debug("Calling ChifInitialize...")
         self.dll.ChifInitialize(None)
 
         self.dll.ChifCreate.argtypes = [c_void_p]
@@ -123,25 +122,20 @@ class HpIlo(object):
             LOGGER.debug("Calling ChifCreate...")
             status = self.dll.ChifCreate(byref(fhandle))
             if status != BlobReturnCodes.SUCCESS:
-                raise HpIloInitialError(
-                    "Error %s occurred while trying " "to create a channel." % status
-                )
+                raise HpIloInitialError("Error %s occurred while trying " "to create a channel." % status)
 
             self.fhandle = fhandle
 
-            if not "skip_ping" in os.environ:
+            if "skip_ping" not in os.environ:
                 status = self.dll.ChifPing(self.fhandle)
                 if status != BlobReturnCodes.SUCCESS:
-                    errmsg = (
-                        "Error {0} occurred while trying to open a "
-                        "channel to iLO".format(status)
-                    )
+                    errmsg = "Error {0} occurred while trying to open a " "channel to iLO".format(status)
                     if status == BlobReturnCodes.CHIFERR_NoDriver:
                         errmsg = "chif"
                     elif status == BlobReturnCodes.CHIFERR_AccessDenied:
                         errmsg = "You must be root/Administrator to use this program."
                     raise HpIloInitialError(errmsg)
-                #LOGGER.debug("Calling ChifSetRecvTimeout...")
+                # LOGGER.debug("Calling ChifSetRecvTimeout...")
                 self.dll.ChifSetRecvTimeout(self.fhandle, 60000)
         except:
             raise
@@ -157,14 +151,10 @@ class HpIlo(object):
         buff = create_string_buffer(bytes(data))
 
         recbuff = create_string_buffer(datarecv)
-        #LOGGER.debug("Calling ChifPacketExchange...")
-        error = self.dll.ChifPacketExchange(
-            self.fhandle, byref(buff), byref(recbuff), datarecv
-        )
+        # LOGGER.debug("Calling ChifPacketExchange...")
+        error = self.dll.ChifPacketExchange(self.fhandle, byref(buff), byref(recbuff), datarecv)
         if error != BlobReturnCodes.SUCCESS:
-            raise HpIloChifPacketExchangeError(
-                "Error %s occurred while " "exchange chif packet" % error
-            )
+            raise HpIloChifPacketExchangeError("Error %s occurred while " "exchange chif packet" % error)
 
         pkt = bytearray()
 

@@ -19,14 +19,14 @@
 
 # ---------Imports---------
 
-import os
-import json
 import errno
-import logging
 import hashlib
+import json
+import logging
+import os
 
+from redfish.rest.containers import RestRequest, StaticRestResponse
 from redfish.rest.v1 import RestClient
-from redfish.rest.containers import StaticRestResponse, RestRequest
 
 from .ris import RisMonolith
 from .sharedtypes import JSONEncoder
@@ -55,6 +55,10 @@ class InvalidCommandLineError(RdmcError):
 
     pass
 
+class TfaEnablePreRequisiteError(RdmcError):
+    """Raised when pre-requisites not met while enabling TFA"""
+
+    pass
 
 class FailureDuringCommitError(RdmcError):
     """Raised when there is an error while committing."""
@@ -91,6 +95,7 @@ class CurrentlyLoggedInError(Exception):
 
     pass
 
+
 class IloLicenseError(Exception):
     """Raised when the proper iLO license is not available for a command"""
 
@@ -101,6 +106,7 @@ class ScepenabledError(Exception):
     """Raised when the generation csr or deletion of https cert is issues when scep is enabled"""
 
     pass
+
 
 class NothingSelectedError(Exception):
     """Raised when attempting to access an object without first selecting it."""
@@ -152,12 +158,6 @@ class InvalidPathError(Exception):
 
 class UnableToObtainIloVersionError(Exception):
     """Raised when iloversion is missing from default path."""
-
-    pass
-
-
-class IncompatibleiLOVersionError(Exception):
-    """Raised when the iLO version is above or below the required version."""
 
     pass
 
@@ -253,29 +253,20 @@ class RmcFileCacheManager(RmcCacheManager):
                             data = json.load(monolith)
                             monolith.close()
                             for item in data:
-                                if (
-                                    "login" in item
-                                    and "session_location" in data["login"]
-                                ):
+                                if "login" in item and "session_location" in data["login"]:
                                     if "blobstore" in data["login"]["url"]:
-                                        loc = data["login"]["session_location"].split(
-                                            "//"
-                                        )[-1]
+                                        loc = data["login"]["session_location"].split("//")[-1]
                                         sesurl = None
                                     else:
                                         loc = None
                                         if data["login"]["session_location"] is not None:
-                                            loc = data["login"]["session_location"].split(
-                                                data["login"]["url"]
-                                            )[-1]
+                                            loc = data["login"]["session_location"].split(data["login"]["url"])[-1]
                                         sesurl = data["login"]["url"]
                                     sessionlocs.append(
                                         (
                                             loc,
                                             sesurl,
-                                            self._rmc._cm.decodefunct(
-                                                data["login"]["session_key"]
-                                            ),
+                                            self._rmc._cm.decodefunct(data["login"]["session_key"]),
                                         )
                                     )
 
@@ -364,9 +355,7 @@ class RmcFileCacheManager(RmcCacheManager):
                 if login_data.get("authorization_key"):
                     redfishinst.basic_auth = login_data.get("authorization_key")
                 elif login_data.get("session_key"):
-                    redfishinst.session_key = self._rmc._cm.decodefunct(
-                        login_data.get("session_key")
-                    )
+                    redfishinst.session_key = self._rmc._cm.decodefunct(login_data.get("session_key"))
                     if isinstance(redfishinst.session_key, bytes):
                         redfishinst.session_key = redfishinst.session_key.decode("utf-8")
                     redfishinst.session_location = login_data.get("session_location")
@@ -455,9 +444,7 @@ class RmcFileCacheManager(RmcCacheManager):
                 get=self._rmc.monolith.paths,
             )
 
-            clientsfh = open(
-                "%s/%s" % (cachedir, index_map[self._rmc.redfishinst.base_url]), "w"
-            )
+            clientsfh = open("%s/%s" % (cachedir, index_map[self._rmc.redfishinst.base_url]), "w")
 
             if isinstance(clients_data, bytes):
                 clients_data = clients_data.decode("utf-8")

@@ -19,19 +19,15 @@
 
 # ---------Imports---------
 
-import re
-import six
 import json
 import logging
+import re
 import textwrap
-import jsonpath_rw
 
-try:
-    from collections import OrderedDict
-except ImportError:
-    from collections.abc import OrderedDict
+import six
+
 from redfish.rest.containers import RisObject
-from redfish.ris.utils import json_traversal
+
 from .sharedtypes import JSONEncoder
 
 # ---------End of imports---------
@@ -116,10 +112,7 @@ class ValidationManager(object):
                         self.defines.defs.regfilecollectiontype,
                     )
                 )
-                and any(
-                    x.lower() in instance.path.lower()
-                    for x in (self._schemaid, self._regid)
-                )
+                and any(x.lower() in instance.path.lower() for x in (self._schemaid, self._regid))
                 and instance
                 and instance.path not in self._classpaths
             ):
@@ -205,7 +198,7 @@ class ValidationManager(object):
         dataloc = cls.get("Members", None) if not dataloc else dataloc
         keyword = "Schema"
         if dataloc and isinstance(dataloc, list):
-            splitname = propname.split(".")[0].strip("#")
+            _ = propname.split(".")[0].strip("#")
             propname = propname.split(".")[0].strip("#") if latestschema else propname
             for entry in dataloc:
                 if entry:
@@ -225,9 +218,7 @@ class ValidationManager(object):
                             reglink = reglink[len(reglink) - 2]
                             if reglink.lower().startswith(propname.lower()):
                                 self.monolith.load(path=entry["@odata.id"], crawl=False)
-                                result.append(
-                                    self.monolith.paths[entry["@odata.id"]].dict
-                                )
+                                result.append(self.monolith.paths[entry["@odata.id"]].dict)
 
         if result:
             result = max(
@@ -314,11 +305,7 @@ class ValidationManager(object):
                 )
             )
             orireg = reg.copy()
-            ttdict = {
-                key: val
-                for key, val in list(tdict.items())
-                if not isinstance(val, (dict, list))
-            }
+            ttdict = {key: val for key, val in list(tdict.items()) if not isinstance(val, (dict, list))}
             results = reg.validate_attribute_values(ttdict)
             self._errors.extend(results)
 
@@ -357,14 +344,10 @@ class ValidationManager(object):
                     del tdict[ki]
 
         else:
-            self._errors.append(
-                RegistryValidationError("Unable to locate registry model")
-            )
+            self._errors.append(RegistryValidationError("Unable to locate registry model"))
         return self._errors, self._warnings
 
-    def checkreadunique(
-        self, tdict, tkey, reg=None, warnings=None, unique=None, searchtype=None
-    ):
+    def checkreadunique(self, tdict, tkey, reg=None, warnings=None, unique=None, searchtype=None):
         """Check for and remove the readonly and unique attributes if required.
 
         :param tdict: the dictionary to test against.
@@ -389,20 +372,12 @@ class ValidationManager(object):
 
         if not unique and reg.get("IsSystemUniqueProperty", None):
             if tdict[tkey] and not isinstance(tdict[tkey], bool):
-                self._warnings.append(
-                    "Property '%s' is unique and override not authorized. Skipping...\n"
-                    % str(tkey)
-                )
+                self._warnings.append("Property '%s' is unique and override not authorized. Skipping...\n" % str(tkey))
                 del tdict[tkey]
                 return True
-        if not reg.get("ReadOnly") or (
-            reg.get(tkey, None) and not reg[tkey].get("readonly")
-        ):
+        if not reg.get("ReadOnly") or (reg.get(tkey, None) and not reg[tkey].get("readonly")):
             if unique and reg.get("IsSystemUniqueProperty", None):
-                self._warnings.append(
-                    "Property '%s' is unique, but override authorized...Patching..\n"
-                    % str(tkey)
-                )
+                self._warnings.append("Property '%s' is unique, but override authorized...Patching..\n" % str(tkey))
                 return False
         # if not searchtype or (reg.get("ReadOnly") or (reg.get(tkey)
         #                                                and reg[tkey].get("readonly"))):
@@ -411,9 +386,7 @@ class ValidationManager(object):
         #    return True
         elif reg.get("ReadOnly") or (reg.get(tkey) and reg[tkey].get("readonly")):
             if tdict[tkey]:
-                self._warnings.append(
-                    "Property '%s' is read-only. Skipping...\n" % str(tkey)
-                )
+                self._warnings.append("Property '%s' is read-only. Skipping...\n" % str(tkey))
                 del tdict[tkey]
                 return True
         else:
@@ -448,11 +421,7 @@ class ValidationManager(object):
         """
         regdict = None
         monolith = self.monolith
-        currtype = (
-            currtype.split("#")[-1].split(".")[0] + "."
-            if currtype and latestschema
-            else currtype
-        )
+        currtype = currtype.split("#")[-1].split(".")[0] + "." if currtype and latestschema else currtype
         if (
             not currtype
             or not self.find_prop(
@@ -482,8 +451,7 @@ class ValidationManager(object):
                     )
                     or (
                         searchtype != "object"
-                        and currtype.split("#")[-1].split(".")[0]
-                        == instance.dict.get("RegistryPrefix", "")
+                        and currtype.split("#")[-1].split(".")[0] == instance.dict.get("RegistryPrefix", "")
                     )
                 ):
                     regdict = instance.resp.dict
@@ -504,10 +472,7 @@ class ValidationManager(object):
         if "RegistryEntries" in jsonreg:
             regitem = jsonreg["RegistryEntries"]
             if "Attributes" in regitem:
-                newitem = {
-                    item[Typepathforval.typepath.defs.attributenametype]: item
-                    for item in regitem["Attributes"]
-                }
+                newitem = {item[Typepathforval.typepath.defs.attributenametype]: item for item in regitem["Attributes"]}
                 regitem["Attributes"] = newitem
                 if not Typepathforval.typepath.flagiften:
                     del regitem["Attributes"]
@@ -536,14 +501,10 @@ class ValidationManager(object):
         """
         for arg in args:
             try:
-                arg = next(
-                    (key for key in list(reg.keys()) if key.lower() == arg.lower()), None
-                )
+                arg = next((key for key in list(reg.keys()) if key.lower() == arg.lower()), None)
                 if not arg:
                     return None
-                if ("properties" in reg[arg].keys()) and (
-                    "patternProperties" in reg[arg].keys()
-                ):
+                if ("properties" in reg[arg].keys()) and ("patternProperties" in reg[arg].keys()):
                     reg[arg]["properties"].update(reg[arg]["patternProperties"])
                     reg = reg[arg]["properties"]
                 elif "oneOf" in reg[arg]:
@@ -557,9 +518,7 @@ class ValidationManager(object):
                     and "properties" in reg[arg]["items"]
                 ):
                     reg = reg[arg]["items"]["properties"]
-                elif (not "properties" in reg[arg].keys()) or (
-                    "patternProperties" in reg[arg].keys()
-                ):
+                elif ("properties" not in reg[arg].keys()) or ("patternProperties" in reg[arg].keys()):
                     reg = reg[arg]
                 else:
                     reg = reg[arg]["properties"]
@@ -587,12 +546,10 @@ class HpPropertiesRegistry(RisObject):
         result = list()
 
         for tkey in tdict:
-            if not tkey in self:
+            if tkey not in self:
                 # Added for Gen 9 Bios properties not in registry
                 continue
-            elif self[tkey] and (
-                checkattr(self[tkey], "type") or checkattr(self[tkey], "Type")
-            ):
+            elif self[tkey] and (checkattr(self[tkey], "type") or checkattr(self[tkey], "Type")):
                 keyval = list()
                 keyval.append(tdict[tkey])
                 temp = self.validate_attribute(self[tkey], keyval, tkey)
@@ -652,9 +609,7 @@ class HpPropertiesRegistry(RisObject):
             validator = PasswordValidator.parse(self[attrname])
         elif "oneOf" in list(self[attrname].keys()):
             for item in self[attrname]["oneOf"]:
-                validator = self.get_validator(
-                    attrname, newargs, HpPropertiesRegistry({attrname: item})
-                )
+                validator = self.get_validator(attrname, newargs, HpPropertiesRegistry({attrname: item}))
                 if validator:
                     break
         return validator
@@ -820,8 +775,7 @@ class BaseValidator(RisObject):
             else:
                 result.append(
                     RegistryValidationError(
-                        "'%s' is not a valid setting "
-                        "for '%s', expecting an array" % (arrval[0], name),
+                        "'%s' is not a valid setting " "for '%s', expecting an array" % (arrval[0], name),
                         regentry=self,
                     )
                 )
@@ -882,10 +836,7 @@ class EnumValidator(BaseValidator):
                     possibleval
                     and (
                         isinstance(possibleval, type(newval))
-                        or (
-                            isinstance(possibleval, six.string_types)
-                            and isinstance(newval, six.string_types)
-                        )
+                        or (isinstance(possibleval, six.string_types) and isinstance(newval, six.string_types))
                     )
                     and possibleval.lower() == str(newval).lower()
                 ):
@@ -898,9 +849,7 @@ class EnumValidator(BaseValidator):
                     return result
 
         result.append(
-            RegistryValidationError(
-                "'%s' is not a valid setting " "for '%s'" % (newval, name), regentry=self
-            )
+            RegistryValidationError("'%s' is not a valid setting " "for '%s'" % (newval, name), regentry=self)
         )
 
         return result
@@ -970,9 +919,7 @@ class BoolValidator(BaseValidator):
             return result
 
         result.append(
-            RegistryValidationError(
-                "'%s' is not a valid setting for '%s'" % (newval[0], name), regentry=self
-            )
+            RegistryValidationError("'%s' is not a valid setting for '%s'" % (newval[0], name), regentry=self)
         )
 
         return result
@@ -1040,8 +987,7 @@ class StringValidator(BaseValidator):
             if len(newval) < int(self["MinLength"]):
                 result.append(
                     RegistryValidationError(
-                        "'%s' must be at least '%s' characters long"
-                        % (self[namestr], int(self["MinLength"])),
+                        "'%s' must be at least '%s' characters long" % (self[namestr], int(self["MinLength"])),
                         regentry=self,
                     )
                 )
@@ -1050,8 +996,7 @@ class StringValidator(BaseValidator):
             if len(newval) > int(self["MaxLength"]):
                 result.append(
                     RegistryValidationError(
-                        "'%s' must be less than '%s' characters long"
-                        % (self[namestr], int(self["MaxLength"])),
+                        "'%s' must be less than '%s' characters long" % (self[namestr], int(self["MaxLength"])),
                         regentry=self,
                     )
                 )
@@ -1062,8 +1007,7 @@ class StringValidator(BaseValidator):
                 if newval and not pat.match(newval):
                     result.append(
                         RegistryValidationError(
-                            "'%s' must match the regular expression "
-                            "'%s'" % (self[namestr], self["ValueExpression"]),
+                            "'%s' must match the regular expression " "'%s'" % (self[namestr], self["ValueExpression"]),
                             regentry=self,
                         )
                     )
@@ -1118,10 +1062,7 @@ class IntegerValidator(BaseValidator):
                         if value.lower() == "integer" or value.lower() == "number":
                             return True
             else:
-                if (
-                    attrentry["type"].lower() == "integer"
-                    or attrentry["type"].lower().lower() == "number"
-                ):
+                if attrentry["type"].lower() == "integer" or attrentry["type"].lower().lower() == "number":
                     return True
         elif "Type" in attrentry:
             if attrentry["Type"].lower() == "integer":
@@ -1141,27 +1082,18 @@ class IntegerValidator(BaseValidator):
             intval = int(newvallist[0])
             newvallist[0] = intval
         except:
-            result.append(
-                RegistryValidationError(
-                    "'%(Name)s' must " "be an integer value'" % (self), regentry=self
-                )
-            )
+            result.append(RegistryValidationError("'%(Name)s' must " "be an integer value'" % (self), regentry=self))
             return result
 
         if newvallist[0] and not str(intval).isdigit():
-            result.append(
-                RegistryValidationError(
-                    "'%(Name)s' must " "be an integer value'" % (self), regentry=self
-                )
-            )
+            result.append(RegistryValidationError("'%(Name)s' must " "be an integer value'" % (self), regentry=self))
             return result
 
         if "LowerBound" in self:
             if intval < int(self["LowerBound"]):
                 result.append(
                     RegistryValidationError(
-                        "'%s' must be greater"
-                        " than or equal to '%s'" % (self.Name, int(self["LowerBound"])),
+                        "'%s' must be greater" " than or equal to '%s'" % (self.Name, int(self["LowerBound"])),
                         regentry=self,
                     )
                 )
@@ -1170,8 +1102,7 @@ class IntegerValidator(BaseValidator):
             if intval > int(self["UpperBound"]):
                 result.append(
                     RegistryValidationError(
-                        "'%s' must be less "
-                        "than or equal to '%s'" % (self.Name, int(self["LowerBound"])),
+                        "'%s' must be less " "than or equal to '%s'" % (self.Name, int(self["LowerBound"])),
                         regentry=self,
                     )
                 )
@@ -1323,8 +1254,7 @@ class PasswordValidator(BaseValidator):
             if len(newval) < int(self["MinLength"]):
                 result.append(
                     RegistryValidationError(
-                        "'%s' must be at least"
-                        " '%s' characters long" % (self.Name, int(self["MinLength"])),
+                        "'%s' must be at least" " '%s' characters long" % (self.Name, int(self["MinLength"])),
                         regentry=self,
                     )
                 )
@@ -1333,8 +1263,7 @@ class PasswordValidator(BaseValidator):
             if len(newval) > int(self["MaxLength"]):
                 result.append(
                     RegistryValidationError(
-                        "'%s' must be less "
-                        "than '%s' characters long" % (self.Name, int(self["MaxLength"])),
+                        "'%s' must be less " "than '%s' characters long" % (self.Name, int(self["MaxLength"])),
                         regentry=self,
                     )
                 )
@@ -1345,9 +1274,7 @@ class PasswordValidator(BaseValidator):
                 if newval and not pat.match(newval):
                     result.append(
                         RegistryValidationError(
-                            "'%(Name)s' must "
-                            "match the regular expression '%(Value"
-                            "Expression)s'" % (self),
+                            "'%(Name)s' must " "match the regular expression '%(Value" "Expression)s'" % (self),
                             regentry=self,
                         )
                     )

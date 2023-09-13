@@ -21,11 +21,11 @@ API type."""
 # ---------Imports---------
 import logging
 
-from redfish import RedfishClient, LegacyRestClient
+from redfish import LegacyRestClient, RedfishClient
 from redfish.rest.v1 import ServerDownOrUnreachableError
 from redfish.ris.rmc_helper import (
-    UnableToObtainIloVersionError,
     NothingSelectedError,
+    UnableToObtainIloVersionError,
     UserNotAdminError,
 )
 
@@ -71,6 +71,7 @@ class Typesandpathdefines(object):
         proxy=None,
         ca_cert_data={},
         isredfish=True,
+        login_otp=None,
     ):
         """Function designed to verify the servers platform. Will generate the `Typeandpathdefines`
         variables based on the system type that is detected.
@@ -115,6 +116,7 @@ class Typesandpathdefines(object):
                     sessionid=sessionid,
                     proxy=proxy,
                     ca_cert_data=ca_cert_data,
+                    login_otp=login_otp,
                 )
                 client._get_root()
             except ServerDownOrUnreachableError as excp:
@@ -130,6 +132,7 @@ class Typesandpathdefines(object):
                         sessionid=sessionid,
                         proxy=proxy,
                         ca_cert_data=ca_cert_data,
+                        login_otp=login_otp
                     )
                     restclient._get_root()
                     # Check that the response is actually legacy rest and not a redirect
@@ -146,8 +149,7 @@ class Typesandpathdefines(object):
 
             if try_count > 1:
                 raise ServerDownOrUnreachableError(
-                    "Server not reachable or does not support "
-                    "HPRest or Redfish: %s\n" % str(excp)
+                    "Server not reachable or does not support " "HPRest or Redfish \n"
                 )
 
             rootresp = client.root.obj
@@ -160,23 +162,17 @@ class Typesandpathdefines(object):
             )
             comp = "Hp" if self.gencompany else None
             comp = "Hpe" if rootresp.get("Oem", {}).get("Hpe", None) else comp
-            if comp and next(
-                iter(rootresp.get("Oem", {}).get(comp, {}).get("Manager", {}))
-            ).get("ManagerType", None):
-                self.ilogen = next(
-                    iter(rootresp.get("Oem", {}).get(comp, {}).get("Manager", {}))
-                ).get("ManagerType")
-                self.ilover = next(
-                    iter(rootresp.get("Oem", {}).get(comp, {}).get("Manager", {}))
-                ).get("ManagerFirmwareVersion")
+            if comp and next(iter(rootresp.get("Oem", {}).get(comp, {}).get("Manager", {}))).get("ManagerType", None):
+                self.ilogen = next(iter(rootresp.get("Oem", {}).get(comp, {}).get("Manager", {}))).get("ManagerType")
+                self.ilover = next(iter(rootresp.get("Oem", {}).get(comp, {}).get("Manager", {}))).get(
+                    "ManagerFirmwareVersion"
+                )
                 if self.ilogen.split(" ")[-1] == "CM":
                     # Assume iLO 4 types in Moonshot
                     self.ilogen = 4
                     self.iloversion = None
                 else:
-                    self.iloversion = float(
-                        self.ilogen.split(" ")[-1] + "." + "".join(self.ilover.split("."))
-                    )
+                    self.iloversion = float(self.ilogen.split(" ")[-1] + "." + "".join(self.ilover.split(".")))
         else:
             self.ilogen = int(gen)
 
@@ -189,9 +185,7 @@ class Typesandpathdefines(object):
 
         self.noschemas = (
             True
-            if self.rootresp
-            and "JsonSchemas" in self.rootresp
-            and not self.rootresp.get("JsonSchemas", None)
+            if self.rootresp and "JsonSchemas" in self.rootresp and not self.rootresp.get("JsonSchemas", None)
             else False
         )
         if self.noschemas:

@@ -19,26 +19,29 @@
 
 # ---------Imports---------
 
+import logging
 import os
-import sys
-import struct
 import random
 import string
-import logging
-
+import struct
+import sys
 from ctypes import (
+    POINTER,
     c_char_p,
     c_ubyte,
     c_uint,
-    cdll,
-    POINTER,
-    create_string_buffer,
     c_ushort,
     c_void_p,
+    cdll,
+    create_string_buffer,
 )
 
-from redfish.hpilo.rishpilo import HpIlo, HpIloInitialError, HpIloChifPacketExchangeError
 from redfish.hpilo.rishpilo import BlobReturnCodes as hpiloreturncodes
+from redfish.hpilo.rishpilo import (
+    HpIlo,
+    HpIloChifPacketExchangeError,
+    HpIloInitialError,
+)
 
 if os.name == "nt":
     from ctypes import windll
@@ -202,10 +205,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = struct.unpack("<I", bytes(resp[8:12]))[0]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -243,10 +243,7 @@ class BlobStore2(object):
         elif errorcode == BlobReturnCodes.NOTFOUND:
             raise BlobNotFoundError(key, namespace)
 
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         response = resp[lib.size_of_responseHeaderBlob() :]
@@ -406,10 +403,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(dataarr)
 
         errorcode = struct.unpack("<I", bytes(resp[8:12]))[0]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -444,10 +438,7 @@ class BlobStore2(object):
                 self.delete(key=key, namespace=namespace, retries=retries + 1)
             else:
                 raise Blob2OverrideError(errorcode)
-        elif not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        elif not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -474,10 +465,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = struct.unpack("<I", bytes(resp[8:12]))[0]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         resp = resp + b"\0" * (lib.size_of_listResponse() - len(resp))
@@ -509,10 +497,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = struct.unpack("<I", bytes(resp[8:12]))[0]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -538,12 +523,8 @@ class BlobStore2(object):
         :type rsp_namespace: str.
 
         """
-        rqt_key = "".join(
-            random.choice(string.ascii_letters + string.digits) for _ in range(10)
-        )
-        rsp_key = "".join(
-            random.choice(string.ascii_letters + string.digits) for _ in range(10)
-        )
+        rqt_key = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
+        rsp_key = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
 
         lib = self.gethprestchifhandle()
 
@@ -613,9 +594,9 @@ class BlobStore2(object):
         else:
             try:
                 self.delete(rsp_key, rsp_namespace)
-            except Blob2OverrideError as excp:
+            except Blob2OverrideError:
                 pass
-            except HpIloChifPacketExchangeError as excp:
+            except HpIloChifPacketExchangeError:
                 pass
             except Exception as excp:
                 raise excp
@@ -635,10 +616,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = struct.unpack("<I", bytes(resp[8:12]))[0]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         try:
@@ -663,10 +641,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = resp[12]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -686,10 +661,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = resp[12]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -709,10 +681,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = resp[12]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -732,10 +701,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = resp[12]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -755,10 +721,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = resp[12]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -778,10 +741,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = resp[12]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -801,10 +761,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = resp[12]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -824,10 +781,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = resp[12]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -847,10 +801,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = resp[12]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -870,10 +821,7 @@ class BlobStore2(object):
         resp = self._send_receive_raw(data)
 
         errorcode = resp[12]
-        if not (
-            errorcode == BlobReturnCodes.SUCCESS
-            or errorcode == BlobReturnCodes.NOTMODIFIED
-        ):
+        if not (errorcode == BlobReturnCodes.SUCCESS or errorcode == BlobReturnCodes.NOTMODIFIED):
             raise HpIloError(errorcode)
 
         self.unloadchifhandle(lib)
@@ -914,7 +862,7 @@ class BlobStore2(object):
         excp = None
         libhandle = None
         if os.name != "nt":
-            libpath = '/opt/ilorest/lib64/libilorestchif.so'
+            libpath = "/opt/ilorest/lib64/libilorestchif.so"
             if os.path.isfile(libpath):
                 libhandle = cdll.LoadLibrary(libpath)
         if not libhandle:
@@ -929,10 +877,10 @@ class BlobStore2(object):
             for libname in libnames:
                 try:
                     libpath = BlobStore2.checkincurrdirectory(libname)
-                    #LOGGER.debug("Loading Library %s for libhpsrv", libpath)
+                    # LOGGER.debug("Loading Library %s for libhpsrv", libpath)
                     libhandle = cdll.LoadLibrary(libpath)
                     if libhandle:
-                        #LOGGER.debug("Got Libhandle %s for libhpsrv", libhandle)
+                        # LOGGER.debug("Got Libhandle %s for libhpsrv", libhandle)
                         break
                 except Exception as exp:
                     excp = exp
@@ -964,7 +912,7 @@ class BlobStore2(object):
         dll = BlobStore2.gethprestchifhandle()
         if LOGGER.isEnabledFor(logging.DEBUG):
             dll.enabledebugoutput()
-        #LOGGER.debug("Calling ChifInitialize...")
+        # LOGGER.debug("Calling ChifInitialize...")
         dll.ChifInitialize(None)
         if username:
             if not password:
@@ -976,27 +924,26 @@ class BlobStore2(object):
                 usernew = create_string_buffer(username.encode("utf-8"))
                 passnew = create_string_buffer(password.encode("utf-8"))
 
-                #LOGGER.debug("Calling initiate_credentials...")
+                # LOGGER.debug("Calling initiate_credentials...")
                 dll.initiate_credentials(usernew, passnew)
-                #LOGGER.debug("Calling ChifVerifyCredentials...")
+                # LOGGER.debug("Calling ChifVerifyCredentials...")
                 credreturn = dll.ChifVerifyCredentials()
                 if not credreturn == BlobReturnCodes.SUCCESS:
                     if credreturn == hpiloreturncodes.CHIFERR_AccessDenied:
                         raise Blob2SecurityError()
                     else:
                         raise HpIloInitialError(
-                            "Error %s occurred while trying "
-                            "to open a channel to iLO" % credreturn
+                            "Error %s occurred while trying " "to open a channel to iLO" % credreturn
                         )
             else:
                 dll.ChifDisableSecurity()
         else:
             # if high security return False
-            #LOGGER.debug("Calling ChifIsSecurityRequired...")
+            # LOGGER.debug("Calling ChifIsSecurityRequired...")
             if dll.ChifIsSecurityRequired() > 0:
                 return False
             else:
-                #LOGGER.debug("Calling ChifDisableSecurity...")
+                # LOGGER.debug("Calling ChifDisableSecurity...")
                 dll.ChifDisableSecurity()
 
         BlobStore2.unloadchifhandle(dll)
@@ -1016,11 +963,7 @@ class BlobStore2(object):
             libpath = os.path.join(os.getcwd(), libpath)
         elif os.environ.get("LD_LIBRARY_PATH"):
             paths = os.getenv("LD_LIBRARY_PATH", libpath).split(";")
-            libpath = [
-                os.path.join(pat, libname)
-                for pat in paths
-                if os.path.isfile(os.path.join(pat, libname))
-            ]
+            libpath = [os.path.join(pat, libname) for pat in paths if os.path.isfile(os.path.join(pat, libname))]
             libpath = libpath[0] if libpath else libname
 
         return libpath

@@ -19,14 +19,13 @@
 
 import logging
 import threading
+from queue import Empty
+
+import jsonpath_rw
 
 # Added for py3 compatibility
 import six
-
-from queue import Empty
 from six.moves.urllib.parse import urlparse, urlunparse
-
-import jsonpath_rw
 
 import redfish.ris
 
@@ -110,8 +109,7 @@ class LoadWorker(threading.Thread):
                 elif resp.status == 401:
                     self.queue.task_done()
                     raise redfish.ris.ris.SessionExpired(
-                        "Invalid session. Please logout and "
-                        "log back in or include credentials."
+                        "Invalid session. Please logout and " "log back in or include credentials."
                     )
                 elif resp.status not in (201, 200):
                     theobj.removepath(path)
@@ -122,8 +120,7 @@ class LoadWorker(threading.Thread):
 
                 fpath = (
                     lambda pa, path: path
-                    if pa.endswith(theobj.typepath.defs.hrefstring)
-                    and pa.startswith((theobj.collstr, "Entries"))
+                    if pa.endswith(theobj.typepath.defs.hrefstring) and pa.startswith((theobj.collstr, "Entries"))
                     else None
                 )
 
@@ -136,11 +133,7 @@ class LoadWorker(threading.Thread):
 
                 if "links" in resp.dict and "NextPage" in resp.dict["links"]:
                     if originaluri:
-                        next_link_uri = (
-                            originaluri
-                            + "?page="
-                            + str(resp.dict["links"]["NextPage"]["page"])
-                        )
+                        next_link_uri = originaluri + "?page=" + str(resp.dict["links"]["NextPage"]["page"])
                         href = "%s" % next_link_uri
 
                         theobj.get_queue.put(
@@ -157,9 +150,7 @@ class LoadWorker(threading.Thread):
                             )
                         )
                     else:
-                        next_link_uri = (
-                            path + "?page=" + str(resp.dict["links"]["NextPage"]["page"])
-                        )
+                        next_link_uri = path + "?page=" + str(resp.dict["links"]["NextPage"]["page"])
 
                         href = "%s" % next_link_uri
                         theobj.get_queue.put(
@@ -179,11 +170,7 @@ class LoadWorker(threading.Thread):
                 # Only use monolith if we are set to
                 matchrdirpath = (
                     next(
-                        (
-                            match
-                            for match in matches
-                            if match.value == theobj._resourcedir
-                        ),
+                        (match for match in matches if match.value == theobj._resourcedir),
                         None,
                     )
                     if theobj.directory_load

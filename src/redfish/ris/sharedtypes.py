@@ -20,7 +20,9 @@
 # ---------Imports---------
 
 import logging
+
 import jsonpatch
+
 from redfish.rest.containers import JSONEncoder
 
 # ---------End of imports---------

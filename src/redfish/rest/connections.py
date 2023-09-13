@@ -16,16 +16,14 @@
 
 # -*- coding: utf-8 -*-
 """All Connections for interacting with REST."""
-import os
-import time
 import gzip
 import json
 import logging
-import urllib3
-import certifi
+import time
 
-from urllib3 import ProxyManager, PoolManager
-from urllib3.exceptions import MaxRetryError, DecodeError
+import urllib3
+from urllib3 import PoolManager, ProxyManager
+from urllib3.exceptions import DecodeError, MaxRetryError
 
 try:
     urllib3.disable_warnings()
@@ -35,10 +33,14 @@ except ImportError:
 
 import six
 from six import BytesIO
-from six.moves.urllib.parse import urlparse, urlencode
+from six.moves.urllib.parse import urlencode, urlparse
 
+from redfish.hpilo.risblobstore2 import (
+    Blob2OverrideError,
+    Blob2SecurityError,
+    BlobStore2,
+)
 from redfish.hpilo.rishpilo import HpIloChifPacketExchangeError
-from redfish.hpilo.risblobstore2 import BlobStore2, Blob2OverrideError, Blob2SecurityError
 from redfish.rest.containers import RestRequest, RestResponse, RisRestResponse
 
 # ---------End of imports---------
@@ -93,13 +95,32 @@ class SecurityStateError(Exception):
 
     pass
 
+class OneTimePasscodeError(Exception):
+    """Raised when OTP is sent to the registered email."""
+
+    pass
+
+class TokenExpiredError(Exception):
+    """Raised when OTP entered has expired."""
+
+    pass
+
+class UnauthorizedLoginAttemptError(Exception):
+    """Raised when Login is Unauthorized"""
+
+    pass
+
 
 class HttpConnection(object):
     """HTTP connection capable of authenticating with HTTPS and Http/Socks Proxies
 
     :param base_url: The URL to make HTTP calls against
     :type base_url: str
-    :param \\**client_kwargs: Arguments to pass to the connection initialization. These are """ "passed to a urllib3 `PoolManager <https://urllib3.readthedocs.io/en/latest/reference/" "index.html?highlight=PoolManager#urllib3.PoolManager>`_. All arguments that can be passed to " "a PoolManager are valid arguments."
+    :param \\**client_kwargs: Arguments to pass to the connection initialization. These are"
+        "passed to a urllib3 `PoolManager <https://urllib3.readthedocs.io/en/latest/reference/"
+        "index.html?highlight=PoolManager#urllib3.PoolManager>`_. All arguments that can be passed to "
+        "a PoolManager are valid arguments."
+    """
 
     def __init__(self, base_url, cert_data, **client_kwargs):
         self._conn = None
@@ -107,7 +128,7 @@ class HttpConnection(object):
         self._connection_properties = client_kwargs
         if cert_data:
             if ("cert_file" in cert_data and cert_data["cert_file"]) or (
-                    "ca_certs" in cert_data and cert_data["ca_certs"]
+                "ca_certs" in cert_data and cert_data["ca_certs"]
             ):
                 self._connection_properties.update({"ca_cert_data": cert_data})
         self._proxy = self._connection_properties.pop("proxy", None)
@@ -130,9 +151,7 @@ class HttpConnection(object):
         if self._connection_properties.get("ca_cert_data"):
             LOGGER.info("Using CA cert to confirm identity.")
             cert_reqs = "CERT_NONE"
-            self._connection_properties.update(
-                self._connection_properties.pop("ca_cert_data")
-            )
+            self._connection_properties.update(self._connection_properties.pop("ca_cert_data"))
 
         timeout = urllib3.util.Timeout(connect=4800, read=4800)
         retries = urllib3.util.Retry(connect=50, read=50, redirect=50)
@@ -165,15 +184,11 @@ class HttpConnection(object):
                 pass
 
             if "timeout" not in self._connection_properties:
-                http = PoolManager(maxsize=50,
-                                   cert_reqs=cert_reqs,
-                                   timeout=timeout,
-                                   retries=retries,
-                                   **self._connection_properties
-                                   )
+                http = PoolManager(
+                    maxsize=50, cert_reqs=cert_reqs, timeout=timeout, retries=retries, **self._connection_properties
+                )
             else:
                 http = PoolManager(cert_reqs=cert_reqs, maxsize=50, retries=retries, **self._connection_properties)
-
 
         self._conn = http.request
 
@@ -222,9 +237,7 @@ class HttpConnection(object):
                         gfile = gzip.GzipFile(mode="wb", fileobj=buf)
 
                         try:
-                            gfile.write(
-                                str(body).encode("utf-8") if six.PY3 else str(body)
-                            )
+                            gfile.write(str(body).encode("utf-8") if six.PY3 else str(body))
                         finally:
                             gfile.close()
 
@@ -245,11 +258,9 @@ class HttpConnection(object):
                 body = urlencode(args)
 
         # TODO: ADD to the default headers?
-        if headers != None:
+        if headers is not None:
             headers["Accept-Encoding"] = "gzip"
-        restreq = RestRequest(
-            path, method, data=files if files else body, url=self.base_url
-        )
+        restreq = RestRequest(path, method, data=files if files else body, url=self.base_url)
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             try:
@@ -299,7 +310,7 @@ class HttpConnection(object):
             request_args["body"] = body
         try:
             resp = self._conn(method, reqfullpath, **request_args)
-        except MaxRetryError as excp:
+        except MaxRetryError:
             vnic_url = "16.1.15.1"
             if reqfullpath.find(vnic_url) != -1:
                 raise VnicNotEnabledError()
@@ -308,14 +319,12 @@ class HttpConnection(object):
             raise DecompressResponseError()
 
         endtime = time.time()
-        LOGGER.info(
-            "Response Time to %s: %s seconds.", restreq.path, str(endtime - inittime)
-        )
+        LOGGER.info("Response Time to %s: %s seconds.", restreq.path, str(endtime - inittime))
 
         restresp = RestResponse(restreq, resp)
-#        if restresp.request.body:
-#            respbody = restresp.read
-#            respbody = respbody.replace("\\\\", "\\")
+        #        if restresp.request.body:
+        #            respbody = restresp.read
+        #            respbody = respbody.replace("\\\\", "\\")
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             headerstr = ""
@@ -325,12 +334,9 @@ class HttpConnection(object):
                     headerstr += "\t" + kiy + ": " + headerval + "\n"
                 try:
                     LOGGER.debug(
-                        "HTTP RESPONSE for %s:\nCode:%s\nHeaders:"
-                        "\n%s\nBody Response of %s: %s",
+                        "HTTP RESPONSE for %s:\nCode:%s\nHeaders:" "\n%s\nBody Response of %s: %s",
                         restresp.request.path,
-                        str(restresp._http_response.status)
-                        + " "
-                        + restresp._http_response.reason,
+                        str(restresp._http_response.status) + " " + restresp._http_response.reason,
                         headerstr,
                         restresp.request.path,
                         restresp.read,
@@ -389,9 +395,7 @@ class Blobstore2Connection(object):
         if isinstance(password, bytes):
             password = password.decode("utf-8")
         try:
-            correctcreds = BlobStore2.initializecreds(
-                username=username, password=password
-            )
+            correctcreds = BlobStore2.initializecreds(username=username, password=password)
             bs2 = BlobStore2()
             if not correctcreds:
                 security_state = int(bs2.get_security_state())
@@ -456,9 +460,7 @@ class Blobstore2Connection(object):
                         gfile = gzip.GzipFile(mode="wb", fileobj=buf)
 
                         try:
-                            gfile.write(
-                                str(body).encode("utf-8") if six.PY3 else str(body)
-                            )
+                            gfile.write(str(body).encode("utf-8") if six.PY3 else str(body))
                         finally:
                             gfile.close()
 
@@ -537,7 +539,7 @@ class Blobstore2Connection(object):
             try:
                 resp_txt = self._conn.rest_immediate(str1)
                 break
-            except Blob2OverrideError as excp:
+            except Blob2OverrideError:
                 if idx == 4:
                     raise Blob2OverrideError(2)
                 else:
@@ -565,9 +567,7 @@ class Blobstore2Connection(object):
                 newloc = rest_response.getheader("location")
                 newurl = urlparse(newloc)
 
-                rest_response = self.rest_request(
-                    newurl.path, method, args, oribody, headers
-                )
+                rest_response = self.rest_request(newurl.path, method, args, oribody, headers)
 
             try:
                 if rest_response.getheader("content-encoding") == "gzip":
@@ -586,12 +586,9 @@ class Blobstore2Connection(object):
                     headerstr += "\t" + header + ": " + headerget[header] + "\n"
                 try:
                     LOGGER.debug(
-                        "Blobstore RESPONSE for %s:\nCode: %s\nHeaders:"
-                        "\n%s\nBody of %s: %s",
+                        "Blobstore RESPONSE for %s:\nCode: %s\nHeaders:" "\n%s\nBody of %s: %s",
                         rest_response.request.path,
-                        str(rest_response._http_response.status)
-                        + " "
-                        + rest_response._http_response.reason,
+                        str(rest_response._http_response.status) + " " + rest_response._http_response.reason,
                         headerstr,
                         rest_response.request.path,
                         rest_response.read,

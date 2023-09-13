@@ -16,16 +16,15 @@
 
 # -*- coding: utf-8 -*-
 """Containers used for REST requests and responses."""
-import sys
 import json
-import six
+import sys
 
 try:
     from collections import OrderedDict
 except ImportError:
     from collections.abc import OrderedDict
 
-from six import text_type, string_types, StringIO, BytesIO
+from six import BytesIO, StringIO, string_types, text_type
 from six.moves import http_client
 
 
@@ -190,11 +189,7 @@ class RestResponse(object):
 
     def getheaders(self):
         """Get all headers included in the response."""
-        return (
-            dict(self._http_response.headers)
-            if self._http_response is not None
-            else self._headers
-        )
+        return dict(self._http_response.headers) if self._http_response is not None else self._headers
 
     def getheader(self, name):
         """Case-insensitive search for an individual header
@@ -248,11 +243,7 @@ class RestResponse(object):
         if self._status:
             return self._status
 
-        return (
-            self._http_response.status
-            if self._http_response is not None
-            else self._status
-        )
+        return self._http_response.status if self._http_response is not None else self._status
 
     @property
     def session_key(self):

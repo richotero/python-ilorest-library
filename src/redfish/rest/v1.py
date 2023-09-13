@@ -19,7 +19,6 @@
 
 # ---------Imports---------
 
-import json
 import base64
 import hashlib
 import logging
@@ -30,6 +29,9 @@ from redfish.rest.connections import (
     Blobstore2Connection,
     HttpConnection,
     InvalidCredentialsError,
+    OneTimePasscodeError,
+    UnauthorizedLoginAttemptError,
+    TokenExpiredError,
 )
 
 # ---------End of imports---------
@@ -104,11 +106,13 @@ class RestClientBase(object):
             _ = conn_kwargs.pop("username", None)
             _ = conn_kwargs.pop("password", None)
             _ = conn_kwargs.pop("sessionid", None)
+            _ = conn_kwargs.pop("login_otp", None)
             self.connection = HttpConnection(base_url, self._cert_data, **conn_kwargs)
         else:
             _ = conn_kwargs.pop("username", None)
             _ = conn_kwargs.pop("password", None)
             _ = conn_kwargs.pop("sessionid", None)
+            _ = conn_kwargs.pop("login_otp", None)
             self.connection = HttpConnection(base_url, self._cert_data, **conn_kwargs)
 
     def _get_req_headers(self, headers=None):
@@ -209,9 +213,7 @@ class RestClientBase(object):
         :type headers: dict
         :returns: A :class:`redfish.rest.containers.RestResponse` object
         """
-        return self.connection.rest_request(
-            path, method="HEAD", headers=self._get_req_headers(headers=headers)
-        )
+        return self.connection.rest_request(path, method="HEAD", headers=self._get_req_headers(headers=headers))
 
     def delete(self, path, headers=None):
         """Perform a DELETE request
@@ -222,9 +224,7 @@ class RestClientBase(object):
         :type args: dict
         :returns: A :class:`redfish.rest.containers.RestResponse` object
         """
-        return self.connection.rest_request(
-            path, method="DELETE", headers=self._get_req_headers(headers=headers)
-        )
+        return self.connection.rest_request(path, method="DELETE", headers=self._get_req_headers(headers=headers))
 
 
 class RestClient(RestClientBase):
@@ -256,25 +256,21 @@ class RestClient(RestClientBase):
         base_url=None,
         auth=None,
         ca_cert_data=None,
+        login_otp=None,
         **client_kwargs
     ):
         """Create a Rest Client object"""
         self.default_prefix = default_prefix
         self.is_redfish = is_redfish
         self.root = None
-        self.auth_type = self._get_auth_type(
-            auth, ca_cert_data=ca_cert_data, **client_kwargs
-        )
+        self.auth_type = self._get_auth_type(auth, ca_cert_data=ca_cert_data, **client_kwargs)
         self._auth_key = None
         self._user_pass = (username, password)
         self._session_location = None
         self._cert_data = ca_cert_data
+        self.login_otp = login_otp
         super(RestClient, self).__init__(
-            username=username,
-            password=password,
-            sessionid=sessionid,
-            base_url=base_url,
-            **client_kwargs
+            username=username, password=password, sessionid=sessionid, base_url=base_url, login_otp=login_otp, **client_kwargs
         )
 
     def __enter__(self):
@@ -295,9 +291,7 @@ class RestClient(RestClientBase):
                 if ("ca_certs" in ca_cert_data and ca_cert_data["ca_certs"]) or (
                     "cert_file" in ca_cert_data and ca_cert_data["cert_file"]
                 ):
-                    if (
-                        ca_cert_data.get("cert_file") and ca_cert_data.get("key_file")
-                    ) or ca_cert_data.get("ca_certs"):
+                    if (ca_cert_data.get("cert_file") and ca_cert_data.get("key_file")) or ca_cert_data.get("ca_certs"):
                         return AuthMethod.CERTIFICATE
             return AuthMethod.SESSION
 
@@ -320,11 +314,7 @@ class RestClient(RestClientBase):
     @property
     def session_key(self):
         """The Client's session key, if any."""
-        return (
-            self._auth_key
-            if self.auth_type in [AuthMethod.SESSION, AuthMethod.CERTIFICATE]
-            else None
-        )
+        return self._auth_key if self.auth_type in [AuthMethod.SESSION, AuthMethod.CERTIFICATE] else None
 
     @session_key.setter
     def session_key(self, ses_key):
@@ -351,7 +341,7 @@ class RestClient(RestClientBase):
                 session_loc = session_loc.replace(" ", "%20")
             else:
                 parse_object = urlparse(self.base_url)
-                if parse_object.hostname != None:
+                if parse_object.hostname is not None:
                     newurl = "https://" + parse_object.hostname
                     session_loc = self._session_location.replace(newurl, "")
                 else:
@@ -399,9 +389,7 @@ class RestClient(RestClientBase):
             login_url = self.root.obj.links.Sessions.href
         finally:
             if not login_url:
-                raise ServerDownOrUnreachableError(
-                    "Cannot locate the login url. Is this a Rest or" " Redfish server?"
-                )
+                raise ServerDownOrUnreachableError("Cannot locate the login url. Is this a Rest or" " Redfish server?")
         return login_url
 
     def login(self, auth=AuthMethod.SESSION):
@@ -443,18 +431,14 @@ class RestClient(RestClientBase):
             resp = self.get(self.default_prefix)
 
             if resp.status != 200:
-                raise ServerDownOrUnreachableError(
-                    "Server not reachable, " "return code: %d" % resp.status
-                )
+                raise ServerDownOrUnreachableError("Server not reachable, " "return code: %d" % resp.status)
             self.root = resp
 
     def _basic_login(self):
         """Login using basic authentication"""
         LOGGER.info("Performing basic authentication.")
         if not self.basic_auth:
-            auth_key = base64.b64encode(
-                ("{}:{}".format(self.username, self.password)).encode("utf-8")
-            ).decode("utf-8")
+            auth_key = base64.b64encode(("{}:{}".format(self.username, self.password)).encode("utf-8")).decode("utf-8")
             self.basic_auth = "Basic {}".format(auth_key)
 
         headers = dict()
@@ -474,23 +458,33 @@ class RestClient(RestClientBase):
             data = dict()
             data["UserName"] = self.username
             data["Password"] = self.password
+            if self.login_otp is not None:
+                data["Token"] = self.login_otp
 
             headers = dict()
             resp = self.post(self.login_url, body=data, headers=headers)
             try:
                 respread = resp.read
                 respread = respread.replace("\\\\", "\\")
-                #LOGGER.info("%s" % respread)
+                # LOGGER.info("%s" % respread)
             except ValueError:
                 pass
             LOGGER.debug("Login returned code %s: %s", resp.status, respread)
 
             self.session_key = resp.session_key
             self.session_location = resp.session_location
+            self.login_return_code = resp.status
+            self.login_response = respread
         else:
             self.session_key = self.connection.session_key
 
-        if not self.session_key and not resp.status == 200:
+        if "OneTimePasscodeSent" in self.login_response:
+            raise OneTimePasscodeError()
+        elif "UnauthorizedLogin" in self.login_response:
+            raise UnauthorizedLoginAttemptError("Error "+str(self.login_return_code)+". Login is unauthorized.\nPlease check the credentials/OTP entered.\n")
+        elif "TokenExpired" in self.login_response:
+            raise TokenExpiredError("Error "+str(self.login_return_code)+". The OTP entered has expired. Please enter credentials again.\n")
+        elif not self.session_key and not resp.status == 200:
             self._credential_err()
         else:
             self._user_pass = (None, None)
@@ -522,17 +516,11 @@ class RestClient(RestClientBase):
         """
         headers = headers if isinstance(headers, dict) else dict()
         h_list = [header.lower() for header in headers]
-        auth_headers = (
-            True if "x-auth-token" in h_list or "authorization" in h_list else False
-        )
+        auth_headers = True if "x-auth-token" in h_list or "authorization" in h_list else False
 
         token = self._biospassword if self._biospassword else optionalpassword
         if token:
-            token = (
-                optionalpassword.encode("utf-8")
-                if type(optionalpassword).__name__ in "basestr"
-                else token
-            )
+            token = optionalpassword.encode("utf-8") if type(optionalpassword).__name__ in "basestr" else token
             hash_object = hashlib.new("SHA256")
             hash_object.update(token)
             headers["X-HPRESTFULAPI-AuthToken"] = hash_object.hexdigest().upper()
@@ -558,14 +546,10 @@ class RestClient(RestClientBase):
         resources = []
 
         if response.status == 200:
-            sys.stdout.write(
-                "\tFound resource directory at /redfish/v1/resourcedirectory" + "\n\n"
-            )
+            sys.stdout.write("\tFound resource directory at /redfish/v1/resourcedirectory" + "\n\n")
             resources = response.dict["Instances"]
         else:
-            sys.stderr.write(
-                "\tResource directory missing at /redfish/v1/resourcedirectory" + "\n"
-            )
+            sys.stderr.write("\tResource directory missing at /redfish/v1/resourcedirectory" + "\n")
 
         return resources
 
@@ -577,24 +561,16 @@ class RestClient(RestClientBase):
         gencompany = next(iter(rootresp.get("Oem", {}).keys()), None) in ("Hpe", "Hp")
         comp = "Hp" if gencompany else None
         comp = "Hpe" if rootresp.get("Oem", {}).get("Hpe", None) else comp
-        if comp and next(
-            iter(rootresp.get("Oem", {}).get(comp, {}).get("Manager", {}))
-        ).get("ManagerType", None):
-            ilogen = next(
-                iter(rootresp.get("Oem", {}).get(comp, {}).get("Manager", {}))
-            ).get("ManagerType")
-            ilover = next(
-                iter(rootresp.get("Oem", {}).get(comp, {}).get("Manager", {}))
-            ).get("ManagerFirmwareVersion")
+        if comp and next(iter(rootresp.get("Oem", {}).get(comp, {}).get("Manager", {}))).get("ManagerType", None):
+            ilogen = next(iter(rootresp.get("Oem", {}).get(comp, {}).get("Manager", {}))).get("ManagerType")
+            ilover = next(iter(rootresp.get("Oem", {}).get(comp, {}).get("Manager", {}))).get("ManagerFirmwareVersion")
             if ilogen.split(" ")[-1] == "CM":
                 # Assume iLO 4 types in Moonshot
                 ilogen = 4
                 iloversion = None
             else:
                 ilogen = ilogen.split(" ")[1]
-                iloversion = float(
-                    ilogen.split(" ")[-1] + "." + "".join(ilover.split("."))
-                )
+                iloversion = float(ilogen.split(" ")[-1] + "." + "".join(ilover.split(".")))
         return (ilogen, iloversion)
 
 

@@ -16,11 +16,12 @@
 # -*- coding: utf-8 -*-
 """Utility functions for internal and external use. Contains general json navigating functions as
 well as some monolith utility functions."""
-import re
-import sys
-import six
 import copy
 import logging
+import re
+import sys
+
+import six
 
 if six.PY3:
     from functools import reduce
@@ -31,7 +32,6 @@ except ImportError:
     from collections.abc import Mapping
 
 import jsonpath_rw
-
 from six import iterkeys, string_types
 
 from redfish.ris.rmc_helper import IncorrectPropValue
@@ -58,11 +58,12 @@ def print_handler(msg):
     :param msg: The warning message.
     :type msg: str
     """
-    #if override:
+    # if override:
     sys.stdout.write(msg)
-    #else:
-    #if LOGGER.getEffectiveLevel() == 40:
-    #LOGGER.warning(msg)
+    # else:
+    # if LOGGER.getEffectiveLevel() == 40:
+    # LOGGER.warning(msg)
+
 
 def warning_handler(msg, override=False):
     """Helper function for handling warning messages appropriately. If LOGGER level is set to 40
@@ -71,10 +72,10 @@ def warning_handler(msg, override=False):
     :param msg: The warning message.
     :type msg: str
     """
-    #if override:
-    #sys.stdout.write(msg)
-    #else:
-    #if LOGGER.getEffectiveLevel() == 40:
+    # if override:
+    # sys.stdout.write(msg)
+    # else:
+    # if LOGGER.getEffectiveLevel() == 40:
     LOGGER.warning(msg)
 
 
@@ -92,11 +93,9 @@ def validate_headers(instance, verbose=False):
         headervals = instance.resp.getheaders()
         for kii, val in headervals.items():
             if kii.lower() == "allow":
-                if not "PATCH" in val:
+                if "PATCH" not in val:
                     if verbose:
-                        warning_handler(
-                            "Skipping read-only path: %s\n" % instance.resp.request.path
-                        )
+                        warning_handler("Skipping read-only path: %s\n" % instance.resp.request.path)
                     skip = True
     except:
         pass
@@ -206,16 +205,12 @@ def checkallowablevalues(newdict=None, oridict=None):
                 valmatches = jexpr2.find(newdict)
                 if valmatches:
                     for mat in valmatches:
-                        res = [
-                            val for val in match.value if mat.value.lower() == val.lower()
-                        ]
+                        res = [val for val in match.value if mat.value.lower() == val.lower()]
                         if not res:
                             raise IncorrectPropValue(
                                 "Incorrect Value "
                                 "entered. Please enter one of the below "
-                                "values for {0}:\n{1}".format(
-                                    "/".join(checkpath.split(".")), str(match.value)[1:-1]
-                                )
+                                "values for {0}:\n{1}".format("/".join(checkpath.split(".")), str(match.value)[1:-1])
                             )
 
 
@@ -234,12 +229,8 @@ def navigatejson(selector, currdict, val=None):
     # TODO: Check for val of different types(bool, int, etc)
     temp_dict = dict()
     createdict = lambda y, x: {x: y}
-    getkey = lambda cdict, sel: next(
-        (item for item in iterkeys(cdict) if sel.lower() == item.lower()), sel
-    )
-    getval = lambda cdict, sele: [
-        cdict[sel] if sel in cdict else "~!@#$%^&*)()" for sel in [getkey(cdict, sele)]
-    ][0]
+    getkey = lambda cdict, sel: next((item for item in iterkeys(cdict) if sel.lower() == item.lower()), sel)
+    getval = lambda cdict, sele: [cdict[sel] if sel in cdict else "~!@#$%^&*)()" for sel in [getkey(cdict, sele)]][0]
     fullbreak = False
     seldict = copy.deepcopy(currdict)
     for ind, sel in enumerate(selector):
@@ -249,9 +240,7 @@ def navigatejson(selector, currdict, val=None):
             if seldict == "~!@#$%^&*)()":
                 return None
             if val and ind == len(selector) - 1:
-                cval = (
-                    ",".join(seldict) if isinstance(seldict, (list, tuple)) else seldict
-                )
+                cval = ",".join(seldict) if isinstance(seldict, (list, tuple)) else seldict
                 if not (
                     (val[-1] == "*" and str(cval).lower().startswith(val[:-1].lower()))
                     or str(cval).lower() == val.lower()
@@ -348,11 +337,8 @@ def getattributeregistry(instances, adict=None):
                         newdict[inst.maj_type] = inst.resp.obj["AttributeRegistry"]
                         return newdict
                 newdict[inst.maj_type] = inst.resp.obj["AttributeRegistry"]
-        except AttributeError as excp:
-            LOGGER.warning(
-                "Invalid/Unpopulated Response: %s\nType:%s\nPath:%s\n"
-                % (inst.resp, inst.type, inst.path)
-            )
+        except AttributeError:
+            LOGGER.warning("Invalid/Unpopulated Response: %s\nType:%s\nPath:%s\n" % (inst.resp, inst.type, inst.path))
     return newdict
 
 
@@ -418,9 +404,7 @@ def diffdict(newdict=None, oridict=None, settingskipped=[False]):
                 continue
             else:
                 if val:
-                    if [va.lower() for va in val] == [
-                        va.lower() if va else va for va in oridict[key]
-                    ]:
+                    if [va.lower() for va in val] == [va.lower() if va else va for va in oridict[key]]:
                         del newdict[key]
         # TODO: check if lowercase is correct or buggy for string types
         elif isinstance(val, (string_types, int, type(None))):
@@ -459,7 +443,7 @@ def json_traversal(data, key_to_find, ret_dict=False):
             try:
                 if _iter == data:
                     return None
-            except Exception as exp:
+            except Exception:
                 pass
             try:
                 if key_to_find.lower() == _iter.lower():
@@ -467,7 +451,7 @@ def json_traversal(data, key_to_find, ret_dict=False):
                         return data
                     else:
                         return data[_iter]
-            except Exception as exp:
+            except Exception:
                 pass
             try:
                 if key_to_find.lower() in [str(_.lower()) for _ in _iter.keys()]:
@@ -475,7 +459,7 @@ def json_traversal(data, key_to_find, ret_dict=False):
                         return data
                     else:
                         return data[_iter]
-            except Exception as exp:
+            except Exception:
                 pass
             _tmp = None
             try:
@@ -490,14 +474,14 @@ def json_traversal(data, key_to_find, ret_dict=False):
                 elif isinstance(data[_iter], list) or isinstance(data[_iter], tuple):
                     try:
                         _tmp = json_traversal(data[i], key_to_find, ret_dict)
-                    except Exception as exp:
+                    except Exception:
                         _tmp = json_traversal(data[_iter], key_to_find, ret_dict)
-            except Exception as exp:
+            except Exception:
                 _tmp = json_traversal(data[i], key_to_find, ret_dict)
             finally:
                 if _tmp:
                     return _tmp
-    except Exception as exp:
+    except Exception:
         pass
 
 
@@ -552,11 +536,7 @@ def json_traversal_delete_empty(data, old_key=None, _iter=None, remove_list=None
                 # would be great to not need this section; however,
                 # since recursive deletion is not possible, this is needed
                 # if you can figure out how to pass by reference then fix me!
-                if (
-                    (isinstance(value, dict) and len(value) < 1)
-                    or None
-                    or value in remove_list
-                ):
+                if (isinstance(value, dict) and len(value) < 1) or None or value in remove_list:
                     delete_list.append(key)
         for dl_entry in delete_list:
             try:
