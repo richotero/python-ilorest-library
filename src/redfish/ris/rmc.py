@@ -957,6 +957,9 @@ class RmcApp(object):
 
         self._modifiedpath(results)
 
+        if results.status == 400 and results.dict is None:
+            return results
+        
         if not silent and hasattr(self.typepath.defs, "messageregistrytype"):
             ResponseHandler(self.validationmanager, self.typepath.defs.messageregistrytype).output_resp(
                 results, dl_reg=service, verbosity=self.verbose

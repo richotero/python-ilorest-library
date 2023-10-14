@@ -223,7 +223,7 @@ class RestResponse(object):
         try:
             return json.loads(self.read)
         except ValueError as exp:
-            if self.path != "/smbios":
+            if self.path != "/smbios" and self.path != "/cgi-bin/uploadFile":
                 sys.stderr.write("An invalid response body was returned: %s" % exp)
             return None
 
