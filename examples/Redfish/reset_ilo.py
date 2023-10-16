@@ -64,18 +64,18 @@ def reset_ilo(_redfishobj, DISABLE_RESOURCE_DIR):
 
 if __name__ == "__main__":
     # When running on the server locally use the following commented values
-    #SYSTEM_URL = None
-    #LOGIN_ACCOUNT = None
-    #LOGIN_PASSWORD = None
+    SYSTEM_URL = None
+    LOGIN_ACCOUNT = None
+    LOGIN_PASSWORD = None
 
     # When running remotely connect using the secured (https://) address,
     # account name, and password to send https requests
     # SYSTEM_URL acceptable examples:
     # "https://10.0.0.100"
     # "https://ilo.hostname"
-    SYSTEM_URL = "https://10.0.0.100"
-    LOGIN_ACCOUNT = "admin"
-    LOGIN_PASSWORD = "password"
+    # SYSTEM_URL = "https://10.0.0.100"
+    # LOGIN_ACCOUNT = "admin"
+    # LOGIN_PASSWORD = "password"
 
     # flag to force disable resource directory. Resource directory and associated operations are
     # intended for HPE servers.
